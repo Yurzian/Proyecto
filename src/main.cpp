@@ -30,19 +30,30 @@ void aciertobot(char **tablero, int **tablero2, char **tablerobot, int &pos1, in
 
 void ganador(int win, int puntuacionjugador, int puntuacionbot, int parejas);
 
+void repetir (bool &fin, bool &terminar);
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 int main()
 {
     srand(time(NULL));
 
-    int filas, columnas, dificultad, dif, zoom, jugador, njugadores;
+    //VARIABLES PARA LA CONFIGURACION
+    int filas, columnas, dificultad, dif, zoom, jugador, njugadores; //
     bool seguir = false;
 
+    //VARIABLES PARA CUANDO EMPIEZA EL JUEGO
+    bool terminar=false, botacierta=false, cambiar, fin=false; //PARA LOS BUCLES Y POR SI ACIERTA EL BOT
+
+    int win, puntuacionjugador = 0, puntuacionbot = 0, puntuaciontotal = 0, end; //QUIEN GANA Y PUNTUACIONES
+
+    int pos1, pos2, pos3, pos4; //POSICIONES PARA EL BOT
+    
+    //CONFIGURACIÓN PARTIDA
     configuracion(seguir, filas, columnas, dificultad, zoom, njugadores, dif, jugador);
-
+    
+    //TABLEROS
     char **tablero, **tablerobot;
-
     int **tablero2;
 
     tablero = new char *[filas];
@@ -57,105 +68,107 @@ int main()
     }
 
     int parejas = (filas * columnas) / 2; //NUMERO DE PAREJAS QUE VA A TENER EL TABLERO
-
-    rellenartablero(filas, columnas, tablero2, parejas, tablero);
-
-    tableroacero(filas, columnas, tablero2, tablerobot);
-
-    bool terminar = false, botacierta=false, cambiar;
-
-    int win, puntuacionjugador = 0, puntuacionbot = 0, puntuaciontotal = 0;
-
-    int pos1, pos2, pos3, pos4;
-
-    while (terminar == false)
+    
+    while (fin == false)
     {
-        switch (jugador)
+        rellenartablero(filas, columnas, tablero2, parejas, tablero); //RELLENA EL TABLERO CON LAS CARTAS
+
+        tableroacero(filas, columnas, tablero2, tablerobot); //TABLERO2 Y TABLERO BOT A 0 PARA COMENZAR
+
+        while (terminar == false)
         {
-            case 1:
-                jugador1(filas, columnas, njugadores, tablero, tablero2, tablerobot, zoom, puntuacionjugador, puntuacionbot);
+            switch (jugador)
+            {
+                case 1: //JUGADOR
+                    jugador1(filas, columnas, njugadores, tablero, tablero2, tablerobot, zoom, puntuacionjugador, puntuacionbot);
 
-                compararpuntos(puntuacionjugador, puntuacionbot, puntuaciontotal, terminar, parejas, win);
+                    compararpuntos(puntuacionjugador, puntuacionbot, puntuaciontotal, terminar, parejas, win);
 
-                if (njugadores == 2)
-                {
-                    jugador = 2;
-                }
+                    if (njugadores == 2) //SI JUEGAS CONTRA EL BOT
+                    {
+                        jugador = 2; //CAMBIA EL TURNO AL BOT
+                    }
 
-            break;
-            
-            case 2:
+                break;
+                
+                case 2: //BOT
 
-                if (dificultad == 0) //SI EL NIVEL ES MEDIO
-                {
-                    dif = 1 + rand() % (2); //HACE LA DIFICULTAD FACIL O DIFICIL AL AZAR
-                }
+                    if (dificultad == 0) //SI EL NIVEL ES MEDIO
+                    {
+                        dif = 1 + rand() % (2); //HACE LA DIFICULTAD FACIL O DIFICIL AL AZAR
+                    }
 
-                switch (dif)
-                {
-                    case 1: botfacil(filas, columnas, tablero, tablero2, tablerobot, zoom, puntuacionjugador, puntuacionbot, njugadores, pos1, pos2, pos3, pos4);
-                            aciertobot(tablero, tablero2, tablerobot, pos1, pos2, pos3
-                            , pos4, puntuacionbot);
+                    switch (dif) //MIRA SI ES FACIL O DIFICIL
+                    {
+                        case 1: botfacil(filas, columnas, tablero, tablero2, tablerobot, zoom, puntuacionjugador, puntuacionbot, njugadores, pos1, pos2, pos3, pos4);
+                                aciertobot(tablero, tablero2, tablerobot, pos1, pos2, pos3
+                                , pos4, puntuacionbot);
 
-                            esperarsegundos();
-                            system("cls");
-                    break;
-
-                    case 2: 
-                            cambiar=true;
-                            botacierta=false;
-                            compararbot(filas, columnas, parejas, tablero, tablero2, tablerobot, botacierta, pos1, pos2, pos3, pos4, cambiar);
-                            
-                            if (botacierta == true)
-                            {
-                                mostrartablero(filas, columnas, njugadores, tablero, tablero2, zoom, puntuacionjugador, puntuacionbot);
-                                aciertobot(tablero, tablero2, tablerobot, pos1, pos2, pos3, pos4, puntuacionbot);
                                 esperarsegundos();
                                 system("cls");
-                            }
-                            else 
-                            {
-                                aleatoriobot(filas, columnas, tablero, tablero2, tablerobot, pos1, pos2);
+                        break;
 
-                                mostrartablero(filas, columnas, njugadores, tablero, tablero2, zoom, puntuacionjugador, puntuacionbot);
-                                cout<<"Turno del Bot" << endl;                              
-                                esperarsegundos();
-                                system("cls");
-        
-                                cambiar=false;
+                        case 2: 
+                                cambiar=true;
+                                botacierta=false;
+
+                                //BUSCA EN SU TABLERO PARA VER SI SABE ALGUNA PAREJA
                                 compararbot(filas, columnas, parejas, tablero, tablero2, tablerobot, botacierta, pos1, pos2, pos3, pos4, cambiar);
-
-                                if (botacierta == true)
-                                {
+                                
+                                if (botacierta == true) //SI LAS SABE Y LAS ACIERTA
+                                {   
+                                    //MUESTRA EL TABLERO CON LAS CASILLAS ACERTADAS
                                     mostrartablero(filas, columnas, njugadores, tablero, tablero2, zoom, puntuacionjugador, puntuacionbot);
                                     aciertobot(tablero, tablero2, tablerobot, pos1, pos2, pos3, pos4, puntuacionbot);
-                                    esperarsegundos();
-                                    system("cls");
+                                    esperarsegundos(); system("cls");
                                 }
                                 else 
                                 {
-                                    aleatoriobot(filas, columnas, tablero, tablero2, tablerobot, pos3, pos4);
+                                    //PRIMERA CASILLA ALEATORIA
+                                    aleatoriobot(filas, columnas, tablero, tablero2, tablerobot, pos1, pos2);
+                                    
+                                    //MUESTRA LA PRIMERA CASILLA DEL BOT
+                                    mostrartablero(filas, columnas, njugadores, tablero, tablero2, zoom, puntuacionjugador, puntuacionbot);      
+                                    cout<<"Turno del Bot" << endl;  esperarsegundos();  system("cls");
+            
+                                    cambiar=false;
+                                    compararbot(filas, columnas, parejas, tablero, tablero2, tablerobot, botacierta, pos1, pos2, pos3, pos4, cambiar);
 
-                                    mostrartablero(filas, columnas, njugadores, tablero, tablero2, zoom, puntuacionjugador, puntuacionbot);
-                                    aciertobot(tablero, tablero2, tablerobot, pos1, pos2, pos3, pos4, puntuacionbot);
-                                    esperarsegundos();
-                                    system("cls");
+                                    if (botacierta == true)
+                                    {
+                                        mostrartablero(filas, columnas, njugadores, tablero, tablero2, zoom, puntuacionjugador, puntuacionbot);
+                                        aciertobot(tablero, tablero2, tablerobot, pos1, pos2, pos3, pos4, puntuacionbot);
+                                        esperarsegundos();
+                                        system("cls");
+                                    }
+                                    else 
+                                    {
+                                        aleatoriobot(filas, columnas, tablero, tablero2, tablerobot, pos3, pos4);
+
+                                        mostrartablero(filas, columnas, njugadores, tablero, tablero2, zoom, puntuacionjugador, puntuacionbot);
+                                        aciertobot(tablero, tablero2, tablerobot, pos1, pos2, pos3, pos4, puntuacionbot);
+                                        esperarsegundos();
+                                        system("cls");
+                                    }
                                 }
-                            }
-                    break;
-                }
+                        break;
+                    }
 
-            compararpuntos(puntuacionjugador, puntuacionbot, puntuaciontotal, terminar, parejas, win);
+                compararpuntos(puntuacionjugador, puntuacionbot, puntuaciontotal, terminar, parejas, win);
 
-            jugador = 1;
+                jugador = 1;
 
-            break;
+                break;
 
+            }
         }
+
+        ganador(win, puntuacionjugador, puntuacionbot, parejas);
+
+        repetir(fin, terminar);
+
+
     }
-
-    ganador(win, puntuacionjugador, puntuacionbot, parejas);
-
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -221,7 +234,7 @@ void configuracion(bool &seguir, int &filas, int &columnas, int &dificultad, int
     if (njugadores == 2)
     {
         temporal = 0;
-        njugadores = 0;
+        dificultad = 0;
         while (dificultad > 3 || dificultad < 1)
         {
             system("cls");
@@ -299,6 +312,15 @@ void tableroacero(int filas, int columnas, int **tableroa, char **tablerob)
         for (int j = 0; j < columnas; j++)
         {
             tableroa[i][j] = 0; //PONEMOS TODOS LOS VALORES DE TABLERO2 A 0
+            tableroa[i][j] = 0; //PONEMOS TODOS LOS VALORES DE TABLEROBOT A 0
+        }
+    }
+
+    for (int i = 0; i < filas; i++)
+    {
+        for (int j = 0; j < columnas; j++)
+        {
+            tablerob[i][j] = 0; //PONEMOS TODOS LOS VALORES DE TABLERO2 A 0
             tablerob[i][j] = 0; //PONEMOS TODOS LOS VALORES DE TABLEROBOT A 0
         }
     }
@@ -771,5 +793,42 @@ void ganador(int win, int puntuacionjugador, int puntuacionbot, int parejas)
     }
 
     esperarsegundos();
+
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void repetir (bool &fin, bool &terminar)
+{
+    int temporal=0;
+    int numero=-1;
+
+    while(numero < 0 || numero > 1)
+    {
+        system("cls");
+
+        if (temporal > 0)
+        {
+            cout << "ERROR, elige una de las opciones." << endl;
+        }
+
+        cout << "Quieres seguir jugando? (0=SI / 1=NO): ";
+        cin >> numero;
+
+        temporal++;
+    }
+
+    switch (numero)
+    {
+        case 0: 
+            fin = false; 
+            terminar = false;
+            system("cls");
+        break;
+
+        case 1:
+            fin = true;
+        break;
+    }
 
 }
