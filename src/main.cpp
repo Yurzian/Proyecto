@@ -1,10 +1,30 @@
 #include <iostream>
 #include <cstring>
 #include <string>
-#include <stdlib.h>
 #include <time.h>
+#include <fstream>
+#include <sstream>
+#include <ctime> 
+
+
+#ifdef __cplusplus__
+#include <cstdlib>
+#define CLEAR "cls"
+#else
+#include <stdlib.h>
+#define CLEAR "clear"
+#endif
 
 using namespace std;
+
+struct record
+{
+    string nombre;
+    string tablero;
+    string dificultad;
+    double tiempo;
+
+};
 
 void configuracion(bool &seguir, int &filas, int &columnas, int &dificultad, int &zoom, int &njugadores, int &dif, int &jugador);
 
@@ -14,7 +34,7 @@ void rellenartablero(int filas, int columnas, int **tablero2, int parejas, char 
 
 void mostrartablero(int fila, int columna, int njugadores, char **tablero, int **tablero2, int zoom, int puntuacionjugador, int puntuacionbot);
 
-void jugador1(int filas, int columnas, int njugadores, char **tablero, int **tablero2, char **tablerobot, int zoom, int &puntuacionjugador, int puntuacionbot);
+void jugador1(int filas, int columnas, int njugadores, char **tablero, int **tablero2, char **tablerobot, int zoom, int &puntuacionjugador, int puntuacionbot, int parejas);
 
 void esperarsegundos();
 
@@ -28,9 +48,15 @@ void aleatoriobot(int filas, int columnas, char **tablero, int **tablero2, char 
 
 void aciertobot(char **tablero, int **tablero2, char **tablerobot, int &pos1, int &pos2, int &pos3, int &pos4, int &puntuacionbot);
 
-void ganador(int win, int puntuacionjugador, int puntuacionbot, int parejas);
+void ganador(int win, int puntuacionjugador, int puntuacionbot, int parejas, double time);
 
-void repetir (bool &fin, bool &terminar);
+void repetir(bool &fin, bool &terminar);
+
+void ficherotiempos(int filas, int columnas, int dificultad, int njugadores, int win, double time, struct record &a);
+
+void escribirfichero(struct record a, int filas, int columnas, string records);
+
+void leerfichero(string records);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -38,16 +64,21 @@ int main()
 {
     srand(time(NULL));
 
+    struct record a;
+
     //VARIABLES PARA LA CONFIGURACION
-    int filas, columnas, dificultad, dif, zoom, jugador, njugadores; //
+    int filas, columnas, dificultad, dif, zoom, jugador, njugadores; 
     bool seguir = false;
 
     //VARIABLES PARA CUANDO EMPIEZA EL JUEGO
     bool terminar=false, botacierta=false, cambiar, fin=false; //PARA LOS BUCLES Y POR SI ACIERTA EL BOT
 
-    int win, puntuacionjugador = 0, puntuacionbot = 0, puntuaciontotal = 0, end; //QUIEN GANA Y PUNTUACIONES
+    int win, puntuacionjugador = 0, puntuacionbot = 0, puntuaciontotal = 0, end, diferencia; //QUIEN GANA Y PUNTUACIONES
 
     int pos1, pos2, pos3, pos4; //POSICIONES PARA EL BOT
+
+    unsigned t0, t1; //PARA EL TIEMPO
+    double time; //PARA EL TIEMPO
     
     //CONFIGURACIÓN PARTIDA
     configuracion(seguir, filas, columnas, dificultad, zoom, njugadores, dif, jugador);
@@ -56,6 +87,7 @@ int main()
     char **tablero, **tablerobot;
     int **tablero2;
 
+    //TABLEROS CON PUNTEROS
     tablero = new char *[filas];
     tablero2 = new int *[filas];
     tablerobot = new char *[filas];
@@ -71,16 +103,21 @@ int main()
     
     while (fin == false)
     {
+        t0=clock(); //EMPIEZA EL CONTADOR
+
         rellenartablero(filas, columnas, tablero2, parejas, tablero); //RELLENA EL TABLERO CON LAS CARTAS
 
         tableroacero(filas, columnas, tablero2, tablerobot); //TABLERO2 Y TABLERO BOT A 0 PARA COMENZAR
 
-        while (terminar == false)
+        puntuacionjugador=0;
+        puntuacionbot=0;
+
+        while (terminar == false) //MIENTRAS EL JUEGO NO ACABE
         {
             switch (jugador)
             {
                 case 1: //JUGADOR
-                    jugador1(filas, columnas, njugadores, tablero, tablero2, tablerobot, zoom, puntuacionjugador, puntuacionbot);
+                    jugador1(filas, columnas, njugadores, tablero, tablero2, tablerobot, zoom, puntuacionjugador, puntuacionbot, parejas);
 
                     compararpuntos(puntuacionjugador, puntuacionbot, puntuaciontotal, terminar, parejas, win);
 
@@ -92,24 +129,39 @@ int main()
                 break;
                 
                 case 2: //BOT
-
-                    if (dificultad == 0) //SI EL NIVEL ES MEDIO
+                    
+                    //SI EL NIVEL ES MEDIO
+                    if (dificultad == 0)
                     {
                         dif = 1 + rand() % (2); //HACE LA DIFICULTAD FACIL O DIFICIL AL AZAR
+                    }
+                    //SI ES NIVEL ADAPTATIVO
+                    else if (dificultad == 4)
+                    {
+                        if (puntuacionjugador > puntuacionbot) //SI GANA EL JUGADOR
+                        {
+                            dif = 2;//DIFICULTAD EN DIFICIL
+                        }
+                        else if (puntuacionbot > puntuacionjugador) //SI GANA EL BOT
+                        {
+                            dif = 1; //DIFICULTAD EN FACIL
+                        }
+                        else if (puntuacionjugador == puntuacionbot) //SI LAS PUNTUACIONES IGUALES
+                        {
+                            dif = 1 + rand() % (2); //DIFICULTAD FACIL O DIFICIL AL AZAR
+                        }
                     }
 
                     switch (dif) //MIRA SI ES FACIL O DIFICIL
                     {
                         case 1: botfacil(filas, columnas, tablero, tablero2, tablerobot, zoom, puntuacionjugador, puntuacionbot, njugadores, pos1, pos2, pos3, pos4);
-                                aciertobot(tablero, tablero2, tablerobot, pos1, pos2, pos3
-                                , pos4, puntuacionbot);
+                                aciertobot(tablero, tablero2, tablerobot, pos1, pos2, pos3, pos4, puntuacionbot);
 
-                                esperarsegundos();
-                                system("cls");
+                                esperarsegundos(); system(CLEAR);
                         break;
 
                         case 2: 
-                                cambiar=true;
+                                cambiar=true; 
                                 botacierta=false;
 
                                 //BUSCA EN SU TABLERO PARA VER SI SABE ALGUNA PAREJA
@@ -117,10 +169,10 @@ int main()
                                 
                                 if (botacierta == true) //SI LAS SABE Y LAS ACIERTA
                                 {   
-                                    //MUESTRA EL TABLERO CON LAS CASILLAS ACERTADAS
+                                    //MUESTRA EL TABLERO CON LAS CASILLAS ACERTADAS Y PONE QUE HA ACERTADO
                                     mostrartablero(filas, columnas, njugadores, tablero, tablero2, zoom, puntuacionjugador, puntuacionbot);
                                     aciertobot(tablero, tablero2, tablerobot, pos1, pos2, pos3, pos4, puntuacionbot);
-                                    esperarsegundos(); system("cls");
+                                    esperarsegundos(); system(CLEAR);
                                 }
                                 else 
                                 {
@@ -129,31 +181,34 @@ int main()
                                     
                                     //MUESTRA LA PRIMERA CASILLA DEL BOT
                                     mostrartablero(filas, columnas, njugadores, tablero, tablero2, zoom, puntuacionjugador, puntuacionbot);      
-                                    cout<<"Turno del Bot" << endl;  esperarsegundos();  system("cls");
+                                    cout<<"Turno del Bot" << endl;  esperarsegundos();  system(CLEAR);
             
                                     cambiar=false;
+                                    //COMPARA LA PRIMERA CASILLA CON EL RESTO DE CASILLAS PARA VER SI LA TIENE
                                     compararbot(filas, columnas, parejas, tablero, tablero2, tablerobot, botacierta, pos1, pos2, pos3, pos4, cambiar);
 
-                                    if (botacierta == true)
+                                    if (botacierta == true) //SI LA TIENE
                                     {
+                                        //LA MUESTRA Y PONE QUE LA HA ACERTADO
                                         mostrartablero(filas, columnas, njugadores, tablero, tablero2, zoom, puntuacionjugador, puntuacionbot);
                                         aciertobot(tablero, tablero2, tablerobot, pos1, pos2, pos3, pos4, puntuacionbot);
-                                        esperarsegundos();
-                                        system("cls");
+                                        esperarsegundos(); system(CLEAR);
                                     }
-                                    else 
+                                    else //SI NO LA TIENE
                                     {
+                                        //SEGUNDA CASILLA ALEATORIA
                                         aleatoriobot(filas, columnas, tablero, tablero2, tablerobot, pos3, pos4);
 
+                                        //LA MUESTRA E INDICA SI HA ACERTADO O NO
                                         mostrartablero(filas, columnas, njugadores, tablero, tablero2, zoom, puntuacionjugador, puntuacionbot);
                                         aciertobot(tablero, tablero2, tablerobot, pos1, pos2, pos3, pos4, puntuacionbot);
-                                        esperarsegundos();
-                                        system("cls");
+                                        esperarsegundos(); system(CLEAR);
                                     }
                                 }
                         break;
                     }
 
+                //COMPARA PUNTOS PARA VER SI HA FINALIZADO
                 compararpuntos(puntuacionjugador, puntuacionbot, puntuaciontotal, terminar, parejas, win);
 
                 jugador = 1;
@@ -162,9 +217,16 @@ int main()
 
             }
         }
+        t1 = clock(); //PARA ACABAR EL CONTADOR
+        time = (double(t1-t0)/CLOCKS_PER_SEC);
 
-        ganador(win, puntuacionjugador, puntuacionbot, parejas);
+        //DICE EL GANADOR
+        ganador(win, puntuacionjugador, puntuacionbot, parejas, time);
 
+        //MUESTRA LOS TIEMPOS
+        ficherotiempos(filas, columnas, dificultad, njugadores, win, time, a);
+
+        //PARA VER SI VOLVER A JUGAR
         repetir(fin, terminar);
 
 
@@ -178,14 +240,15 @@ void configuracion(bool &seguir, int &filas, int &columnas, int &dificultad, int
     int temporal = 0;
     filas = 3;
     columnas = 3;
-    while ((filas * columnas) % 2 != 0)
+    while ((filas * columnas) % 2 != 0) //WHILE PARA QUE SOLO SALGA SI LA TABLA ES PAR
     {
 
-        if (temporal > 0)
+        if (temporal > 0) //SI ES MAS DE UNO ES PORQUE HA FALLADO, POR LO QUE PONE ERROR
         {
-            system("cls");
+            system(CLEAR);
             cout << "ERROR. La tabla debe ser par (la multiplicacion de las filas y columnas debe ser un número par)." << endl;
         }
+
         cout << "Elige el numero de filas: ";
         cin >> filas;
 
@@ -197,9 +260,9 @@ void configuracion(bool &seguir, int &filas, int &columnas, int &dificultad, int
 
     temporal = 0;
     zoom = -1;
-    while ((zoom > 2) || (zoom < 0))
+    while ((zoom > 2) || (zoom < 0)) //WHILE PARA QUE SALGA SOLO SI ES UNA OPCION
     {
-        system("cls");
+        system(CLEAR);
 
         if (temporal > 0)
         {
@@ -214,9 +277,9 @@ void configuracion(bool &seguir, int &filas, int &columnas, int &dificultad, int
 
     temporal = 0;
     njugadores = 0;
-    while (njugadores > 2 || njugadores < 1)
+    while (njugadores > 2 || njugadores < 1) //WHILE PARA QUE SALGA SOLO SI ES UNA OPCION
     {
-        system("cls");
+        system(CLEAR);
 
         if (temporal > 0)
         {
@@ -235,9 +298,9 @@ void configuracion(bool &seguir, int &filas, int &columnas, int &dificultad, int
     {
         temporal = 0;
         dificultad = 0;
-        while (dificultad > 3 || dificultad < 1)
+        while (dificultad > 4 || dificultad < 1) //WHILE PARA QUE SALGA SOLO SI ES UNA OPCION
         {
-            system("cls");
+            system(CLEAR);
 
             if (temporal > 0)
             {
@@ -248,6 +311,7 @@ void configuracion(bool &seguir, int &filas, int &columnas, int &dificultad, int
             cout << "1.- Facil." << endl;
             cout << "2.- Medio." << endl;
             cout << "3.- Dificil." << endl;
+            cout << "4.- Adaptativa." << endl;
             cin >> dificultad;
             
             temporal++;
@@ -256,9 +320,10 @@ void configuracion(bool &seguir, int &filas, int &columnas, int &dificultad, int
 
         temporal = 0;
         jugador = 0;
-        while (jugador > 2 || jugador < 1)
+        while (jugador > 2 || jugador < 1) //WHILE PARA QUE SALGA SOLO SI ES UNA OPCION
         {
-            system("cls");
+
+            system(CLEAR);
 
             if (temporal > 0)
             {
@@ -277,13 +342,17 @@ void configuracion(bool &seguir, int &filas, int &columnas, int &dificultad, int
         {
             dificultad = 0; //LO PASO A LO QUE EL ORDENADOR INTERPRETA QUE ES EL NIVEL MEDIO
         }
-        else if (dificultad == 1)
+        else if (dificultad == 1) //SI ESTA EN FACIL
         {
-            dif = 1;
+            dif = 1; //DIF EN FACIL
         }
-        else if (dificultad == 3)
+        else if (dificultad == 3) //SI ESTA EN DIFICIL
         {
-            dif = 2;
+            dif = 2; //DIF EN DIFICIL
+        }
+        else if (dificultad == 4) //SI ESTA EN ADAPTATIVA
+        {
+            dificultad = 1; //DIFICULTAD EN ADAPTATIVA
         }
         
         //EL NIVEL FACIL LO INTERPRETA COMO 1 POR LO QUE NO SE CAMBIA
@@ -299,7 +368,7 @@ void configuracion(bool &seguir, int &filas, int &columnas, int &dificultad, int
     }
 
 
-    system("cls");
+    system(CLEAR);
 
 }
 
@@ -446,9 +515,9 @@ void mostrartablero(int fila, int columna, int njugadores, char **tablero, int *
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void jugador1(int filas, int columnas, int njugadores, char **tablero, int **tablero2, char **tablerobot, int zoom, int &puntuacionjugador, int puntuacionbot)
+void jugador1(int filas, int columnas, int njugadores, char **tablero, int **tablero2, char **tablerobot, int zoom, int &puntuacionjugador, int puntuacionbot, int parejas)
 {
-    bool seguir = true, error = false, acertada=false;
+    bool seguir = true, error = false, mostrada=false;
 
     int p1, p2, p3, p4;
     char pos1[2], pos2[2];
@@ -458,13 +527,13 @@ void jugador1(int filas, int columnas, int njugadores, char **tablero, int **tab
 
         if (error == true)
         {
-            if (acertada == false)
+            if (mostrada == false)
             {
             tablero2[p1][p2] = 0;
             }
         }
 
-        acertada=false;
+        mostrada=false;
 
         error = false;
 
@@ -491,16 +560,16 @@ void jugador1(int filas, int columnas, int njugadores, char **tablero, int **tab
 
         if (tablero2[p1][p2] == 1)
         {
-            acertada=true;
+            mostrada=true;
         }
 
         tablero2[p1][p2] = 1; //SE METE EN LA MATRIZ 2 PARA MOSTRARLO
 
-        system("cls");
+        system(CLEAR);
 
         mostrartablero(filas, columnas, njugadores, tablero, tablero2, zoom, puntuacionjugador, puntuacionbot);
 
-        if (acertada == false)
+        if (mostrada == false)
         {
         tablero2[p1][p2] = 0; //SE VUELVE A QUITAR DE LA MATRIZ 2 PARA COMPROBAR SI LA SEGUNDA POSICION ES CORRECTA
         }
@@ -513,9 +582,18 @@ void jugador1(int filas, int columnas, int njugadores, char **tablero, int **tab
         p3 = (int)pos2[0] - 65; //SE LES DA EL VALOR PARA USARLAS EN LA MATRIZ
         p4 = (int)pos2[1] - 65;
 
-        system("cls");
+        system(CLEAR);
 
-        if ((p1 == p3) && (p2 == p4)) //ERROR
+        if (p1 > filas-1 || p1 < 0 || p2 > columnas-1 || p2 < 0 || p3 > filas-1 || p3 < 0 || p4 > columnas-1 || p4 < 0 ) //SI ALGUNA NO EXISTE
+        {
+            cout << "ERROR. Elige posiciones que existan" << endl;
+            cout << endl
+                 << endl;
+            error = true;
+            seguir = false;
+        }
+        else
+        if ((p1 == p3) && (p2 == p4)) //SI ALGUNA ESTA REPETIDA
         {
             cout << "EYEYEYEYEYEYEY. NO SE VALEN TRAMPAS." << endl;
             cout << "No introduzcas la misma casilla dos veces maquina." << endl;
@@ -525,7 +603,7 @@ void jugador1(int filas, int columnas, int njugadores, char **tablero, int **tab
         }
         else
         {
-            if ((tablero2[p1][p2] == 1) || (tablero2[p3][p4] == 1)) //ERROR
+            if ((tablero2[p1][p2] == 1) || (tablero2[p3][p4] == 1)) //SI ALGUNA YA SE MUESTRA
             {
                 cout << "EYEYEYEYEYEYEY. NO SE VALEN TRAMPAS." << endl;
                 cout << "No introduzcas una casilla ya levantada maquina." << endl;
@@ -533,7 +611,7 @@ void jugador1(int filas, int columnas, int njugadores, char **tablero, int **tab
                      << endl;
                 error = true;
             }
-            else //NO HAY ERROR
+            else //SI NO HAY ERROR
             {
                 seguir = false;
                 tablero2[p1][p2] = 1; //LAS MOSTRAMOS EN EL TABLERO2
@@ -567,7 +645,7 @@ void jugador1(int filas, int columnas, int njugadores, char **tablero, int **tab
     }
     esperarsegundos();
 
-    system("cls");
+    system(CLEAR);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -629,7 +707,7 @@ void botfacil(int filas, int columnas, char **tablero, int **tablero2, char **ta
     tablerobot[pos1][pos2] = tablero[pos1][pos2];
     tablero2[pos1][pos2] = 1;
 
-    system("cls");
+    system(CLEAR);
     mostrartablero(filas, columnas, njugadores, tablero, tablero2, zoom, puntuacionjugador, puntuacionbot); //MUESTRA TABLERO
     esperarsegundos();
 
@@ -651,7 +729,7 @@ void botfacil(int filas, int columnas, char **tablero, int **tablero2, char **ta
     tablerobot[pos3][pos4] = tablero[pos3][pos4];
     tablero2[pos3][pos4] = 1;
 
-    system("cls");
+    system(CLEAR);
     mostrartablero(filas, columnas, njugadores, tablero, tablero2, zoom, puntuacionjugador, puntuacionbot); //MUESTRA TABLERO
 
 }
@@ -670,16 +748,16 @@ void compararbot(int filas, int columnas, int parejas, char **tablero, int **tab
         {
             for (int j = 0; j < columnas; j++)
             {
-                if (tablerobot[i][j] == letra)
+                if (tablerobot[i][j] == letra) //SI ES LA MISMA LETRA
                 {
                     repeticiones++;
 
-                    if (repeticiones == 1)
+                    if (repeticiones == 1) //SE REPITE UNA VEZ
                     {
                         p1 = i;
                         p2 = j;
                     }
-                    if (repeticiones == 2)
+                    if (repeticiones == 2) //SE REPITE DOS VECES
                     {
                         p3 = i;
                         p4 = j;
@@ -769,7 +847,7 @@ void aciertobot(char **tablero, int **tablero2, char **tablerobot, int &pos1, in
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void ganador(int win, int puntuacionjugador, int puntuacionbot, int parejas)
+void ganador(int win, int puntuacionjugador, int puntuacionbot, int parejas, double time)
 {
     if (puntuacionbot == puntuacionjugador)
     {
@@ -780,15 +858,15 @@ void ganador(int win, int puntuacionjugador, int puntuacionbot, int parejas)
     switch (win)
     {
     case 0:
-        cout << "EMPATE" << endl;
+        cout << "EMPATE con una duracion de " << time << endl;
         break;
 
     case 1:
-        cout << "GANA EL JUGADOR CON " << puntuacionjugador << " puntos de " << parejas << endl;
+        cout << "GANA EL JUGADOR CON " << puntuacionjugador << " puntos de " << parejas << " en " << time << endl;
         break;
 
     case 2:
-        cout << "GANA LA MAQUINA CON " << puntuacionbot << " puntos de " << parejas << endl;
+        cout << "GANA LA MAQUINA CON " << puntuacionbot << " puntos de " << " en " << time << endl;
         break;
     }
 
@@ -803,9 +881,9 @@ void repetir (bool &fin, bool &terminar)
     int temporal=0;
     int numero=-1;
 
-    while(numero < 0 || numero > 1)
+    while(numero < 0 || numero > 1) //WHILE PARA QUE SEA UNA OPCION VALIDA
     {
-        system("cls");
+        system(CLEAR);
 
         if (temporal > 0)
         {
@@ -820,15 +898,134 @@ void repetir (bool &fin, bool &terminar)
 
     switch (numero)
     {
-        case 0: 
+        case 0: //SEGUIR JUGANDO
             fin = false; 
             terminar = false;
-            system("cls");
+            system(CLEAR);
         break;
 
-        case 1:
+        case 1: //SALIR
             fin = true;
         break;
     }
 
 }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void ficherotiempos(int filas, int columnas, int dif, int njugadores, int win, double time, struct record &a)
+{
+    int ver;
+
+    if (win == 1)
+    {
+    cout << "Introduce el nombre con el que guardar tu tiempo: ";
+    cin >> a.nombre;
+    }
+    else if (win == 0)
+    {
+        cout << "Empate guardado en la tabla de tiempos" << endl;
+        a.nombre="Empate";
+    }
+    else if (win == 2)
+    {
+        cout << "Victoria del BOT guardada en la tabla de tiempos" << endl;
+        a.nombre="BOT";
+    }
+
+
+    if (njugadores == 1)
+    {
+        a.dificultad="Solo";
+    }
+    else if (njugadores == 2)
+    {
+        switch (dif)
+        {
+            case 1:
+                a.dificultad="Facil";
+            break;
+            
+            case 2:
+                a.dificultad="Medio";
+            break;
+
+            case 3:
+                a.dificultad="Dificil";
+            break;
+
+            case 4:
+                a.dificultad="Adaptativo";
+            break;
+        }
+    }
+    a.tiempo=time;
+
+    escribirfichero(a, filas, columnas, "records");
+    
+    cout << endl << "Quieres ver el historial de tiempos? (1=Si): ";
+    cin >> ver;
+
+    if (ver == 1)
+    {
+        while (ver != 0)
+        {
+            system(CLEAR);
+            leerfichero("records");
+            cout << endl << "Introduce 0 para salir: "; 
+            cin >> ver;
+        }
+    }
+
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void escribirfichero(struct record a, int filas, int columnas, string records)
+{
+    ofstream f( records );
+
+    if ( f.is_open() )
+    {
+        f << a.nombre << " " << filas << "x" << columnas << " " << a.dificultad << " " << a.tiempo << endl; 
+    }
+    else
+        cout << "Error de apertura del archivo." << endl;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void leerfichero(string records)
+{
+    string s;
+    ifstream f( records );
+
+    if ( f.is_open() )
+    {
+        getline( f, s );
+
+        while( !f.eof() ) 
+        {
+            stringstream buffer;
+            buffer.str(s); 
+
+            string nombre;
+            string tablero;
+            string dificultad;
+            double tiempo;
+
+            //ordeñar el stringstream
+            buffer >> nombre;
+            buffer >> tablero;
+            buffer >> dificultad;
+            buffer >> tiempo;
+            
+            cout <<  nombre << " " << tablero << " " << dificultad << " " << tiempo << endl;
+
+            getline( f, s );
+        }
+    }
+    else
+        cout << "Error de apertura del archivo." << endl;
+}
+
